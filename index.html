@@ -761,16 +761,17 @@
       }
     });
 
-    // 載入管理員清單（待審核 / 已收錄）
+// 載入管理員清單（待審核 / 已收錄）
     async function loadAdminList() {
       if (!isAdmin) return;
       const listEl = document.getElementById("admin-list");
       listEl.textContent = "載入中...";
 
       try {
+        const targetStatus = currentAdminSubtab === "pending" ? "pending" : "approved";
         const q = query(
           collection(db, "submissions"),
-          where("status", "==", currentAdminSubtab === "pending" ? "pending" : "approved"),
+          where("status", "==", targetStatus),
           orderBy("createdAt", "desc")
         );
         const snap = await getDocs(q);
@@ -825,7 +826,6 @@
           `;
         }).join("");
 
-        // 設定預設下拉選單
         snap.docs.forEach(d => {
           const sel = document.getElementById(`cattag-${d.id}`);
           if (sel && sel.dataset.default) {
@@ -833,11 +833,11 @@
           }
         });
       } catch (err) {
-        listEl.innerHTML = `<div class="msg-error">載入失敗：${escapeHtml(err.message)}（若提示需要建立索引，可點選錯誤訊息中的連結建立，或先移除 orderBy 測試）</div>`;
+        listEl.innerHTML = `<div class="msg-error">載入失敗：${escapeHtml(err.message)}</div>`;
       }
     }
 
-    // 一鍵核准入庫
+    // 一鍵核准入庫（已修正 doc 參數為 subId）
     window.approveSubmission = async (subId) => {
       if (!isAdmin || !currentUser) return;
       const inputEl = document.getElementById(`text-${subId}`);
@@ -864,7 +864,7 @@
           createdAt: serverTimestamp()
         });
 
-        await updateDoc(doc(db, "submissions"), {
+        await updateDoc(doc(db, "submissions", subId), {
           status: "approved",
           reviewedAt: serverTimestamp()
         });
@@ -875,7 +875,7 @@
         alert("核准失敗：" + err.message);
       }
     };
-
+    
     // 標記不採用
     window.rejectSubmission = async (subId) => {
       if (!isAdmin) return;

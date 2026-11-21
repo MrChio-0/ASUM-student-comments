@@ -3,29 +3,315 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Firebase 登入與寫入測試</title>
+  <title>學生評語生成器</title>
   <style>
-    body { font-family: sans-serif; max-width: 640px; margin: 40px auto; padding: 0 16px; line-height: 1.6; }
-    button { padding: 8px 14px; margin-right: 8px; cursor: pointer; }
-    .box { border: 1px solid #ddd; border-radius: 8px; padding: 16px; margin-top: 16px; background: #fafafa; }
+    :root {
+      --bg: #f5f7fa;
+      --card: #ffffff;
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --success: #16a34a;
+      --danger: #dc2626;
+      --border: #e2e8f0;
+      --text: #1e293b;
+      --muted: #64748b;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 24px 16px;
+      line-height: 1.6;
+    }
+    .container {
+      max-width: 920px;
+      margin: 0 auto;
+    }
+    .header {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px 20px;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .header h1 {
+      font-size: 1.25rem;
+      margin: 0;
+    }
+    .user-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.9rem;
+      flex-wrap: wrap;
+    }
+    .badge {
+      background: #dbeafe;
+      color: var(--primary);
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: 600;
+    }
+    .tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+    .tab-btn {
+      background: var(--card);
+      border: 1px solid var(--border);
+      padding: 10px 18px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .tab-btn.active {
+      background: var(--primary);
+      color: #fff;
+      border-color: var(--primary);
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+    .card h2 {
+      margin-top: 0;
+      font-size: 1.1rem;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 10px;
+    }
+    label {
+      display: block;
+      font-weight: 600;
+      margin: 12px 0 6px;
+      font-size: 0.92rem;
+    }
+    input[type="text"], select, textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-family: inherit;
+    }
+    textarea {
+      min-height: 120px;
+      resize: vertical;
+    }
+    .checkbox-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 8px;
+      margin-top: 6px;
+    }
+    .checkbox-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      padding: 8px 10px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
+    .checkbox-item input { margin: 0; }
+    button {
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      padding: 9px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.92rem;
+      font-weight: 600;
+    }
+    button:hover { background: var(--primary-hover); }
+    button.secondary {
+      background: #e2e8f0;
+      color: var(--text);
+    }
+    button.secondary:hover { background: #cbd5e1; }
+    button.success {
+      background: var(--success);
+    }
+    button.success:hover { background: #15803d; }
+    button.danger {
+      background: var(--danger);
+    }
+    button.danger:hover { background: #b91c1c; }
+    .actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 16px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .output-box {
+      background: #f8fafc;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      padding: 14px;
+      margin-top: 14px;
+      white-space: pre-wrap;
+      font-size: 1rem;
+    }
+    .msg-success {
+      color: var(--success);
+      font-weight: 600;
+      margin-top: 10px;
+    }
+    .msg-error {
+      color: var(--danger);
+      font-weight: 600;
+      margin-top: 10px;
+    }
+    .muted {
+      color: var(--muted);
+      font-size: 0.86rem;
+    }
+    .sub-tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .review-item {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px;
+      margin-bottom: 12px;
+      background: #fafcff;
+    }
+    .review-meta {
+      font-size: 0.82rem;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+    .review-controls {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .hidden { display: none !important; }
   </style>
 </head>
 <body>
-  <h2>Firebase Google 登入與 Firestore 測試</h2>
+  <div class="container">
+    <div class="header">
+      <div>
+        <h1>學生評語生成器</h1>
+        <div class="muted">三學段不重複生成 · 老師每行一句投稿</div>
+      </div>
+      <div class="user-bar">
+        <div id="auth-logged-out">
+          <button id="btn-login">使用 Google 帳號登入</button>
+        </div>
+        <div id="auth-logged-in" class="hidden">
+          <span id="user-display"></span>
+          <span id="role-badge" class="badge hidden">管理員</span>
+          <button id="btn-logout" class="secondary">登出</button>
+        </div>
+      </div>
+    </div>
 
-  <div id="logged-out">
-    <button id="btn-login">使用 Google 帳號登入</button>
-  </div>
+    <div id="login-notice" class="card">
+      <h2>請先登入 Google 帳號</h2>
+      <p class="muted">登入後即可使用「評語生成」與「投稿以往評語」；若為管理員帳號，將自動顯示「管理員審核」分頁。</p>
+      <button id="btn-login-card">使用 Google 帳號登入</button>
+    </div>
 
-  <div id="logged-in" style="display: none;">
-    <p>已登入：<strong id="user-info"></strong></p>
-    <button id="btn-test-write">測試寫入一筆紀錄到 Firestore</button>
-    <button id="btn-logout">登出</button>
-  </div>
+    <div id="app-main" class="hidden">
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="generator">1. 評語生成器</button>
+        <button class="tab-btn" data-tab="submit">2. 投稿以往評語</button>
+        <button class="tab-btn hidden" id="tab-admin-btn" data-tab="admin">3. 管理員審核</button>
+      </div>
 
-  <div class="box">
-    <strong>狀態訊息：</strong>
-    <div id="status">尚未操作</div>
+      <!-- 分頁 1：評語生成器 -->
+      <section id="panel-generator" class="card">
+        <h2>生成學生評語（先讚後彈＋美化包裝＋改善／期望）</h2>
+        <div class="muted">系統會自動記錄每位學生已使用過的句子與句型，盡量讓第 1、2、3 學段評語不重複。</div>
+
+        <label for="student-name">學生姓名</label>
+        <input type="text" id="student-name" placeholder="例如：陳小明" />
+
+        <label for="term-select">選擇學段</label>
+        <select id="term-select">
+          <option value="1">第一學段</option>
+          <option value="2">第二學段</option>
+          <option value="3">第三學段（全年回顧與展望）</option>
+        </select>
+
+        <label>選擇學生長處（可多選）</label>
+        <div id="strength-options" class="checkbox-grid"></div>
+
+        <label>選擇待改善／不足之處（可多選，生成時會美化包裝並附上建議／期望）</label>
+        <div id="improvement-options" class="checkbox-grid"></div>
+
+        <div class="actions">
+          <button id="btn-generate">生成評語</button>
+          <button id="btn-copy" class="secondary">一鍵複製評語</button>
+          <button id="btn-clear-student-history" class="secondary">重設此學生防重複紀錄</button>
+        </div>
+
+        <div id="generated-output" class="output-box">尚未生成評語</div>
+        <div id="gen-status" class="muted" style="margin-top:8px;"></div>
+      </section>
+
+      <!-- 分頁 2：一般老師投稿 -->
+      <section id="panel-submit" class="card hidden">
+        <h2>匯入／投稿以往評語</h2>
+        <p class="muted">請按格式貼上評語：<strong>每結束一句就換行（Enter）代表新一句評語</strong>，空白行會自動忽略。送出後僅會顯示投稿成功。</p>
+
+        <label for="submit-hint">整體偏向提示（選填，供管理員分類參考）</label>
+        <select id="submit-hint">
+          <option value="general">未指定</option>
+          <option value="strength">偏長處／正面肯定</option>
+          <option value="improvement">偏待改善／建議期望</option>
+        </select>
+
+        <label for="submit-lines">貼上評語內容（每行一句）</label>
+        <textarea id="submit-lines" placeholder="上課留心聽講，能緊跟老師的教學步伐。&#10;樂於協助同學，遵守班規，與朋輩相處融洽。&#10;偶爾因操之過急而忽略細節，若能多花一分鐘覆核會更理想。"></textarea>
+
+        <div class="actions">
+          <button id="btn-submit-comments">送出投稿</button>
+        </div>
+        <div id="submit-feedback"></div>
+      </section>
+
+      <!-- 分頁 3：管理員審核 -->
+      <section id="panel-admin" class="card hidden">
+        <h2>管理員審核後台</h2>
+        <p class="muted">可逐條修改句子、指定正式入庫類別與適用學段，再按「一鍵核准入庫」。一般老師只能讀取正式資料庫生成評語。</p>
+
+        <div class="actions" style="margin-top:0; margin-bottom:14px;">
+          <button id="btn-seed-bank" class="secondary">若正式庫尚無資料，點此寫入預設範例語料</button>
+          <button id="btn-refresh-admin" class="secondary">重新整理清單</button>
+        </div>
+
+        <div class="sub-tabs">
+          <button class="tab-btn active" id="subtab-pending">待審核</button>
+          <button class="tab-btn" id="subtab-approved">已收錄</button>
+        </div>
+
+        <div id="admin-list">載入中...</div>
+      </section>
+    </div>
   </div>
 
   <script type="module">
@@ -41,10 +327,16 @@
       getFirestore,
       collection,
       addDoc,
+      getDocs,
+      doc,
+      updateDoc,
+      query,
+      where,
+      orderBy,
       serverTimestamp
     } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore.js";
 
-    // TODO: 替換為你在 Firebase Project settings -> Your apps 取得的設定
+    // 1. 替換為你的 Firebase 設定
     const firebaseConfig = {
       apiKey: "AIzaSyCmB6XbMJaG7uG_jYEkI3eHbN6HcPpxSlo",
       authDomain: "student-comments-tool.firebaseapp.com",
@@ -54,61 +346,561 @@
       appId: "1:1061902453639:web:dfa79a44d3990ba0c62122"
     };
 
+    // 2. 填入你的管理員 Google 信箱（小寫）
+    const ADMIN_EMAILS = [
+      "sb31989@gmail.com"
+    ];
+
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
     const provider = new GoogleAuthProvider();
 
-    const loggedOutEl = document.getElementById("logged-out");
-    const loggedInEl = document.getElementById("logged-in");
-    const userInfoEl = document.getElementById("user-info");
-    const statusEl = document.getElementById("status");
+    // 標籤定義（可依正式語料庫持續擴充）
+    const STRENGTH_TAGS = [
+      { key: "listening", label: "上課專心留心" },
+      { key: "conduct", label: "守規矩、有禮貌" },
+      { key: "helpful", label: "樂於助人、合群" },
+      { key: "homework", label: "功課認真、整潔" }
+    ];
 
-    function setStatus(msg) {
-      statusEl.textContent = msg;
-    }
+    const IMPROVEMENT_TAGS = [
+      { key: "careless", label: "容易粗心大意" },
+      { key: "speaking", label: "較少主動發言" },
+      { key: "pace", label: "做事節奏較慢" },
+      { key: "confidence", label: "遇難題易氣餒" }
+    ];
 
-    document.getElementById("btn-login").addEventListener("click", async () => {
-      try {
-        await signInWithPopup(auth, provider);
-        setStatus("Google 登入成功！");
-      } catch (err) {
-        setStatus("登入失敗：" + err.message);
+    // 內建預設語料（當 Firestore 的 approved_comments 尚未有資料時使用）
+    const FALLBACK_BANK = {
+      strength: {
+        listening: [
+          "上課留心聽講，能緊跟老師的教學步伐",
+          "課堂表現專注，對學習內容反應敏捷",
+          "能保持良好的聽課習慣，學習態度認真"
+        ],
+        conduct: [
+          "遵守班規，舉止有禮，展現良好的自律性",
+          "品行端正，懂得尊重師長與同學",
+          "日常常規表現穩健，令人放心"
+        ],
+        helpful: [
+          "樂於協助同學，與朋輩相處融洽，具團隊精神",
+          "熱心班務，待人友善，深受師生喜愛",
+          "心腸善良，願意主動伸出援手"
+        ],
+        homework: [
+          "日常習作能按時完成，字跡端正清秀",
+          "對學習任務負責，提交的作業大致整潔",
+          "做事有條理，能認真對待每一份功課"
+        ]
+      },
+      softened_weakness: {
+        careless: [
+          "偶爾因操之過急而忽略細節，稍欠細心",
+          "在審題與核對方面若能放慢腳步，準確率會更高",
+          "具備解題能力，惟偶爾忽略小節，略顯大意"
+        ],
+        speaking: [
+          "個性較文靜內斂，課堂上較少主動舉手表達想法",
+          "思考周全但較為含蓄，公開發言的機會相對較少",
+          "屬於慢熱型學生，樂於傾聽但較少展現自信"
+        ],
+        pace: [
+          "做事力求穩妥，但在限時任務中節奏稍慢",
+          "完成部分練習時需較多時間梳理，時間掌握尚有空間",
+          "步調較為從容，若能加快起手速度會更順暢"
+        ],
+        confidence: [
+          "面對較難的題目時偶爾容易退縮，信心尚待提升",
+          "遇到挫折時較易產生顧慮，需要多一點肯定與鼓勵",
+          "在陌生題型前較易猶豫，若能多一份嘗試勇氣會更好"
+        ]
+      },
+      advice: {
+        careless: [
+          "完成作答後預留一兩分鐘細心覆核，定能減少不必要的失分",
+          "建議養成圈畫重點的習慣，讓細心成為你的優勢"
+        ],
+        speaking: [
+          "鼓勵多嘗試舉手分享見解，即使簡短回應也是很好的開始",
+          "期盼你更勇於表達自己，讓大家看見你更多的想法"
+        ],
+        pace: [
+          "可先為每項任務設定小目標與時間提示，逐步提升效率",
+          "期望你在保持穩健的同時，也能更有效掌握時間分配"
+        ],
+        confidence: [
+          "遇到困難時不妨先拆解步驟嘗試，老師相信你做得到",
+          "期許你多給自己一點信心，勇敢迎接每一次挑戰"
+        ]
       }
-    });
+    };
 
-    document.getElementById("btn-logout").addEventListener("click", async () => {
-      await signOut(auth);
-      setStatus("已登出。");
-    });
+    const TERM_TEMPLATES = {
+      "1": [
+        "{name}在第一學段表現{adj}。{strength}。{weakness}，{advice}。",
+        "本學段{name}{strength}，展現出良好的起步。不過{weakness}，期望{name}{advice}。"
+      ],
+      "2": [
+        "踏入第二學段，{name}{strength}。在學習上，{weakness}；建議{advice}，相信能再創佳績。",
+        "{name}於中段學習期間{strength}，整體表現平穩。惟{weakness}，若能{advice}，表現將更上一層樓。"
+      ],
+      "3": [
+        "總結全學年，{name}{strength}，進步值得肯定。美中不足的是{weakness}，寄語{name}{advice}，迎接新階段的挑戰。",
+        "回顧本年度學習歷程，{name}{strength}。倘若{weakness}，定能更臻完善；老師期望{name}未來{advice}。"
+      ]
+    };
 
-    document.getElementById("btn-test-write").addEventListener("click", async () => {
-      const user = auth.currentUser;
-      if (!user) return;
+    let currentUser = null;
+    let isAdmin = false;
+    let currentAdminSubtab = "pending";
+    let approvedCommentsCache = [];
+
+    // DOM 元素
+    const authLoggedOutEl = document.getElementById("auth-logged-out");
+    const authLoggedInEl = document.getElementById("auth-logged-in");
+    const userDisplayEl = document.getElementById("user-display");
+    const roleBadgeEl = document.getElementById("role-badge");
+    const loginNoticeEl = document.getElementById("login-notice");
+    const appMainEl = document.getElementById("app-main");
+    const tabAdminBtn = document.getElementById("tab-admin-btn");
+
+    // 渲染多選標籤
+    function renderTagOptions() {
+      const sContainer = document.getElementById("strength-options");
+      const iContainer = document.getElementById("improvement-options");
+
+      sContainer.innerHTML = STRENGTH_TAGS.map(t => `
+        <label class="checkbox-item">
+          <input type="checkbox" name="strength" value="${t.key}" />
+          <span>${t.label}</span>
+        </label>
+      `).join("");
+
+      iContainer.innerHTML = IMPROVEMENT_TAGS.map(t => `
+        <label class="checkbox-item">
+          <input type="checkbox" name="improvement" value="${t.key}" />
+          <span>${t.label}</span>
+        </label>
+      `).join("");
+    }
+    renderTagOptions();
+
+    // 登入與登出
+    async function handleLogin() {
       try {
-        const docRef = await addDoc(collection(db, "usage_logs"), {
-          email: user.email,
-          name: user.displayName || "",
-          action: "login_test",
+        const result = await signInWithPopup(auth, provider);
+        const u = result.user;
+        await addDoc(collection(db, "usage_logs"), {
+          email: u.email || "",
+          name: u.displayName || "",
+          action: "login",
           createdAt: serverTimestamp()
         });
-        setStatus("寫入成功！文件 ID：" + docRef.id);
       } catch (err) {
-        setStatus("寫入失敗：" + err.message);
+        alert("登入失敗：" + err.message);
+      }
+    }
+
+    document.getElementById("btn-login").addEventListener("click", handleLogin);
+    document.getElementById("btn-login-card").addEventListener("click", handleLogin);
+    document.getElementById("btn-logout").addEventListener("click", () => signOut(auth));
+
+    // 分頁切換
+    document.querySelectorAll(".tab-btn[data-tab]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const target = btn.dataset.tab;
+        if (target === "admin" && !isAdmin) return;
+        document.querySelectorAll(".tab-btn[data-tab]").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        document.getElementById("panel-generator").classList.toggle("hidden", target !== "generator");
+        document.getElementById("panel-submit").classList.toggle("hidden", target !== "submit");
+        document.getElementById("panel-admin").classList.toggle("hidden", target !== "admin");
+        if (target === "admin" && isAdmin) {
+          loadAdminList();
+        }
+      });
+    });
+
+    // 監聽登入狀態
+    onAuthStateChanged(auth, async (user) => {
+      currentUser = user;
+      if (user) {
+        const emailLower = (user.email || "").toLowerCase();
+        isAdmin = ADMIN_EMAILS.map(e => e.toLowerCase()).includes(emailLower);
+
+        authLoggedOutEl.classList.add("hidden");
+        authLoggedInEl.classList.remove("hidden");
+        loginNoticeEl.classList.add("hidden");
+        appMainEl.classList.remove("hidden");
+
+        userDisplayEl.textContent = `${user.displayName || "老師"} (${user.email})`;
+        roleBadgeEl.classList.toggle("hidden", !isAdmin);
+        tabAdminBtn.classList.toggle("hidden", !isAdmin);
+
+        await loadApprovedComments();
+      } else {
+        isAdmin = false;
+        authLoggedOutEl.classList.remove("hidden");
+        authLoggedInEl.classList.add("hidden");
+        loginNoticeEl.classList.remove("hidden");
+        appMainEl.classList.add("hidden");
+        tabAdminBtn.classList.add("hidden");
       }
     });
 
-    onAuthStateChanged(auth, (user) => {
-      if (user) {
-        loggedOutEl.style.display = "none";
-        loggedInEl.style.display = "block";
-        userInfoEl.textContent = `${user.displayName || "老師"} (${user.email})`;
-      } else {
-        loggedOutEl.style.display = "block";
-        loggedInEl.style.display = "none";
-        userInfoEl.textContent = "";
+    // 讀取正式資料庫 approved_comments
+    async function loadApprovedComments() {
+      try {
+        const snap = await getDocs(collection(db, "approved_comments"));
+        approvedCommentsCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      } catch (err) {
+        console.warn("讀取正式語料庫失敗，改用預設語料：", err.message);
+        approvedCommentsCache = [];
+      }
+    }
+
+    function getPool(category, tagKey, term) {
+      const fromDb = approvedCommentsCache
+        .filter(item => item.category === category && item.tagKey === tagKey)
+        .filter(item => !Array.isArray(item.terms) || item.terms.length === 0 || item.terms.includes(String(term)))
+        .map(item => item.content)
+        .filter(Boolean);
+
+      if (fromDb.length > 0) return fromDb;
+      return (FALLBACK_BANK[category] && FALLBACK_BANK[category][tagKey]) || [];
+    }
+
+    // 防重複紀錄（存在瀏覽器 localStorage）
+    function getStudentUsedSet(studentName) {
+      const raw = localStorage.getItem("used_comments_v1");
+      const all = raw ? JSON.parse(raw) : {};
+      return new Set(all[studentName] || []);
+    }
+
+    function saveStudentUsedSet(studentName, setObj) {
+      const raw = localStorage.getItem("used_comments_v1");
+      const all = raw ? JSON.parse(raw) : {};
+      all[studentName] = Array.from(setObj);
+      localStorage.setItem("used_comments_v1", JSON.stringify(all));
+    }
+
+    function pickNonRepeating(list, usedSet) {
+      if (!list || list.length === 0) return "";
+      const unused = list.filter(item => !usedSet.has(item));
+      const pool = unused.length > 0 ? unused : list;
+      const picked = pool[Math.floor(Math.random() * pool.length)];
+      usedSet.add(picked);
+      return picked;
+    }
+
+    function joinPhrases(arr) {
+      if (!arr.length) return "";
+      if (arr.length === 1) return arr[0];
+      return arr.slice(0, -1).join("，同時") + "，並且" + arr[arr.length - 1];
+    }
+
+    // 生成評語
+    document.getElementById("btn-generate").addEventListener("click", () => {
+      const name = document.getElementById("student-name").value.trim() || "這位同學";
+      const term = document.getElementById("term-select").value;
+      const selectedStrengths = Array.from(document.querySelectorAll('input[name="strength"]:checked')).map(el => el.value);
+      const selectedImprovements = Array.from(document.querySelectorAll('input[name="improvement"]:checked')).map(el => el.value);
+
+      const usedSet = getStudentUsedSet(name);
+
+      const sPhrases = selectedStrengths
+        .map(k => pickNonRepeating(getPool("strength", k, term), usedSet))
+        .filter(Boolean);
+
+      const wPhrases = selectedImprovements
+        .map(k => pickNonRepeating(getPool("softened_weakness", k, term), usedSet))
+        .filter(Boolean);
+
+      const aPhrases = selectedImprovements
+        .map(k => pickNonRepeating(getPool("advice", k, term), usedSet))
+        .filter(Boolean);
+
+      if (aPhrases.length === 0) {
+        aPhrases.push(
+          pickNonRepeating([
+            "保持這份踏實與熱忱，繼續穩步向前",
+            "善用現有的學習優勢，勇於嘗試更高層次的挑戰"
+          ], usedSet)
+        );
+      }
+
+      const tplList = TERM_TEMPLATES[term] || TERM_TEMPLATES["1"];
+      const tpl = pickNonRepeating(tplList, usedSet);
+      const adj = pickNonRepeating(["穩健", "積極", "用心"], usedSet);
+
+      const comment = tpl
+        .replaceAll("{name}", name)
+        .replaceAll("{adj}", adj)
+        .replaceAll("{strength}", joinPhrases(sPhrases) || "學習態度尚算端正")
+        .replaceAll("{weakness}", joinPhrases(wPhrases) || "整體表現已相當理想")
+        .replaceAll("{advice}", joinPhrases(aPhrases));
+
+      saveStudentUsedSet(name, usedSet);
+      document.getElementById("generated-output").textContent = comment;
+      const sourceNote = approvedCommentsCache.length > 0
+        ? `已結合正式語料庫（共 ${approvedCommentsCache.length} 句）生成`
+        : "目前使用內建預設語料生成（管理員核准入庫後將自動採用正式語料）";
+      document.getElementById("gen-status").textContent = `${sourceNote}；已為「${name}」更新防重複紀錄。`;
+    });
+
+    document.getElementById("btn-copy").addEventListener("click", async () => {
+      const text = document.getElementById("generated-output").textContent;
+      if (!text || text === "尚未生成評語") return;
+      await navigator.clipboard.writeText(text);
+      document.getElementById("gen-status").textContent = "已複製評語到剪貼簿！";
+    });
+
+    document.getElementById("btn-clear-student-history").addEventListener("click", () => {
+      const name = document.getElementById("student-name").value.trim() || "這位同學";
+      const raw = localStorage.getItem("used_comments_v1");
+      const all = raw ? JSON.parse(raw) : {};
+      delete all[name];
+      localStorage.setItem("used_comments_v1", JSON.stringify(all));
+      document.getElementById("gen-status").textContent = `已清除「${name}」的防重複紀錄。`;
+    });
+
+    // 一般老師投稿：每行一句，送出後僅顯示投稿成功
+    document.getElementById("btn-submit-comments").addEventListener("click", async () => {
+      const feedbackEl = document.getElementById("submit-feedback");
+      feedbackEl.className = "";
+      feedbackEl.textContent = "";
+
+      if (!currentUser) {
+        feedbackEl.className = "msg-error";
+        feedbackEl.textContent = "請先登入。";
+        return;
+      }
+
+      const rawText = document.getElementById("submit-lines").value;
+      const lines = rawText
+        .split(/\r?\n/)
+        .map(line => line.trim())
+        .filter(line => line.length > 0);
+
+      if (lines.length === 0) {
+        feedbackEl.className = "msg-error";
+        feedbackEl.textContent = "請至少輸入一句評語（每行一句）。";
+        return;
+      }
+
+      const hint = document.getElementById("submit-hint").value;
+
+      try {
+        await Promise.all(
+          lines.map(sentence =>
+            addDoc(collection(db, "submissions"), {
+              rawText: sentence,
+              hintCategory: hint,
+              status: "pending",
+              submittedByEmail: currentUser.email || "",
+              submittedByName: currentUser.displayName || "",
+              createdAt: serverTimestamp()
+            })
+          )
+        );
+
+        document.getElementById("submit-lines").value = "";
+        feedbackEl.className = "msg-success";
+        feedbackEl.textContent = `投稿成功！已收到 ${lines.length} 句評語，感謝分享。`;
+      } catch (err) {
+        feedbackEl.className = "msg-error";
+        feedbackEl.textContent = "投稿失敗：" + err.message;
       }
     });
+
+    // 管理員分頁切換
+    document.getElementById("subtab-pending").addEventListener("click", () => {
+      currentAdminSubtab = "pending";
+      document.getElementById("subtab-pending").classList.add("active");
+      document.getElementById("subtab-approved").classList.remove("active");
+      loadAdminList();
+    });
+
+    document.getElementById("subtab-approved").addEventListener("click", () => {
+      currentAdminSubtab = "approved";
+      document.getElementById("subtab-approved").classList.add("active");
+      document.getElementById("subtab-pending").classList.remove("active");
+      loadAdminList();
+    });
+
+    document.getElementById("btn-refresh-admin").addEventListener("click", loadAdminList);
+
+    // 寫入預設範例語料到正式庫（方便初次啟用）
+    document.getElementById("btn-seed-bank").addEventListener("click", async () => {
+      if (!isAdmin) return;
+      try {
+        const batchDocs = [];
+        for (const [cat, tagsObj] of Object.entries(FALLBACK_BANK)) {
+          for (const [tagKey, phrases] of Object.entries(tagsObj)) {
+            for (const content of phrases) {
+              batchDocs.push(
+                addDoc(collection(db, "approved_comments"), {
+                  content,
+                  category: cat,
+                  tagKey,
+                  terms: ["1", "2", "3"],
+                  approvedBy: currentUser.email || "",
+                  createdAt: serverTimestamp()
+                })
+              );
+            }
+          }
+        }
+        await Promise.all(batchDocs);
+        await loadApprovedComments();
+        alert(`已寫入 ${batchDocs.length} 句預設範例語料至正式資料庫！`);
+      } catch (err) {
+        alert("寫入失敗：" + err.message);
+      }
+    });
+
+    // 載入管理員清單（待審核 / 已收錄）
+    async function loadAdminList() {
+      if (!isAdmin) return;
+      const listEl = document.getElementById("admin-list");
+      listEl.textContent = "載入中...";
+
+      try {
+        const q = query(
+          collection(db, "submissions"),
+          where("status", "==", currentAdminSubtab === "pending" ? "pending" : "approved"),
+          orderBy("createdAt", "desc")
+        );
+        const snap = await getDocs(q);
+
+        if (snap.empty) {
+          listEl.innerHTML = `<p class="muted">目前沒有「${currentAdminSubtab === "pending" ? "待審核" : "已收錄"}」的項目。</p>`;
+          return;
+        }
+
+        const strengthOptsHtml = STRENGTH_TAGS.map(t => `<option value="strength|${t.key}">${t.label}（長處）</option>`).join("");
+        const impOptsHtml = IMPROVEMENT_TAGS.map(t =>
+          `<option value="softened_weakness|${t.key}">${t.label}（美化不足）</option>
+           <option value="advice|${t.key}">${t.label}（改善／期望）</option>`
+        ).join("");
+
+        listEl.innerHTML = snap.docs.map(d => {
+          const item = d.data();
+          const defaultCatTag = item.hintCategory === "improvement" ? "softened_weakness|careless" : "strength|listening";
+          return `
+            <div class="review-item" id="row-${d.id}">
+              <div class="review-meta">
+                投稿者：<strong>${escapeHtml(item.submittedByName || "")}</strong> (${escapeHtml(item.submittedByEmail || "")})
+                ｜ 提示：${escapeHtml(item.hintCategory || "general")}
+              </div>
+              <input type="text" id="text-${d.id}" value="${escapeAttr(item.rawText || "")}" />
+              ${currentAdminSubtab === "pending" ? `
+                <div class="review-controls">
+                  <div>
+                    <label style="margin-top:4px;">歸類標籤</label>
+                    <select id="cattag-${d.id}" data-default="${defaultCatTag}">
+                      ${strengthOptsHtml}
+                      ${impOptsHtml}
+                    </select>
+                  </div>
+                  <div>
+                    <label style="margin-top:4px;">適用學段</label>
+                    <select id="term-${d.id}">
+                      <option value="1,2,3">第 1、2、3 學段皆可</option>
+                      <option value="1,2">第 1、2 學段</option>
+                      <option value="3">第 3 學段</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="actions">
+                  <button class="success" onclick="window.approveSubmission('${d.id}')">一鍵核准入庫</button>
+                  <button class="danger" onclick="window.rejectSubmission('${d.id}')">不採用</button>
+                </div>
+              ` : `
+                <div class="muted" style="margin-top:6px;">狀態：已收錄至正式資料庫</div>
+              `}
+            </div>
+          `;
+        }).join("");
+
+        // 設定預設下拉選單
+        snap.docs.forEach(d => {
+          const sel = document.getElementById(`cattag-${d.id}`);
+          if (sel && sel.dataset.default) {
+            sel.value = sel.dataset.default;
+          }
+        });
+      } catch (err) {
+        listEl.innerHTML = `<div class="msg-error">載入失敗：${escapeHtml(err.message)}（若提示需要建立索引，可點選錯誤訊息中的連結建立，或先移除 orderBy 測試）</div>`;
+      }
+    }
+
+    // 一鍵核准入庫
+    window.approveSubmission = async (subId) => {
+      if (!isAdmin || !currentUser) return;
+      const inputEl = document.getElementById(`text-${subId}`);
+      const catTagEl = document.getElementById(`cattag-${subId}`);
+      const termEl = document.getElementById(`term-${subId}`);
+
+      const content = (inputEl ? inputEl.value : "").trim();
+      if (!content) {
+        alert("評語內容不能為空");
+        return;
+      }
+
+      const [category, tagKey] = (catTagEl ? catTagEl.value : "strength|listening").split("|");
+      const terms = (termEl ? termEl.value : "1,2,3").split(",");
+
+      try {
+        await addDoc(collection(db, "approved_comments"), {
+          content,
+          category,
+          tagKey,
+          terms,
+          sourceSubmissionId: subId,
+          approvedBy: currentUser.email || "",
+          createdAt: serverTimestamp()
+        });
+
+        await updateDoc(doc(db, "submissions"), {
+          status: "approved",
+          reviewedAt: serverTimestamp()
+        });
+
+        await loadApprovedComments();
+        await loadAdminList();
+      } catch (err) {
+        alert("核准失敗：" + err.message);
+      }
+    };
+
+    // 標記不採用
+    window.rejectSubmission = async (subId) => {
+      if (!isAdmin) return;
+      try {
+        await updateDoc(doc(db, "submissions", subId), {
+          status: "rejected",
+          reviewedAt: serverTimestamp()
+        });
+        await loadAdminList();
+      } catch (err) {
+        alert("更新失敗：" + err.message);
+      }
+    };
+
+    function escapeHtml(str) {
+      return String(str)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;");
+    }
+
+    function escapeAttr(str) {
+      return escapeHtml(str).replaceAll("'", "&#39;");
+    }
   </script>
 </body>
 </html>

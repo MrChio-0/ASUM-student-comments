@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Firebase 登入與寫入測試</title>
+  <style>
+    body { font-family: sans-serif; max-width: 640px; margin: 40px auto; padding: 0 16px; line-height: 1.6; }
+    button { padding: 8px 14px; margin-right: 8px; cursor: pointer; }
+    .box { border: 1px solid #ddd; border-radius: 8px; padding: 16px; margin-top: 16px; background: #fafafa; }
+  </style>
+</head>
+<body>
+  <h2>Firebase Google 登入與 Firestore 測試</h2>
+
+  <div id="logged-out">
+    <button id="btn-login">使用 Google 帳號登入</button>
+  </div>
+
+  <div id="logged-in" style="display: none;">
+    <p>已登入：<strong id="user-info"></strong></p>
+    <button id="btn-test-write">測試寫入一筆紀錄到 Firestore</button>
+    <button id="btn-logout">登出</button>
+  </div>
+
+  <div class="box">
+    <strong>狀態訊息：</strong>
+    <div id="status">尚未操作</div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js";
+    import {
+      getAuth,
+      GoogleAuthProvider,
+      signInWithPopup,
+      signOut,
+      onAuthStateChanged
+    } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-auth.js";
+    import {
+      getFirestore,
+      collection,
+      addDoc,
+      serverTimestamp
+    } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore.js";
+
+    // TODO: 替換為你在 Firebase Project settings -> Your apps 取得的設定
+    const firebaseConfig = {
+      apiKey: "AIzaSyCmB6XbMJaG7uG_jYEkI3eHbN6HcPpxSlo",
+      authDomain: "student-comments-tool.firebaseapp.com",
+      projectId: "student-comments-tool",
+      storageBucket: "student-comments-tool.firebasestorage.app",
+      messagingSenderId: "1061902453639",
+      appId: "1:1061902453639:web:dfa79a44d3990ba0c62122"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    const provider = new GoogleAuthProvider();
+
+    const loggedOutEl = document.getElementById("logged-out");
+    const loggedInEl = document.getElementById("logged-in");
+    const userInfoEl = document.getElementById("user-info");
+    const statusEl = document.getElementById("status");
+
+    function setStatus(msg) {
+      statusEl.textContent = msg;
+    }
+
+    document.getElementById("btn-login").addEventListener("click", async () => {
+      try {
+        await signInWithPopup(auth, provider);
+        setStatus("Google 登入成功！");
+      } catch (err) {
+        setStatus("登入失敗：" + err.message);
+      }
+    });
+
+    document.getElementById("btn-logout").addEventListener("click", async () => {
+      await signOut(auth);
+      setStatus("已登出。");
+    });
+
+    document.getElementById("btn-test-write").addEventListener("click", async () => {
+      const user = auth.currentUser;
+      if (!user) return;
+      try {
+        const docRef = await addDoc(collection(db, "usage_logs"), {
+          email: user.email,
+          name: user.displayName || "",
+          action: "login_test",
+          createdAt: serverTimestamp()
+        });
+        setStatus("寫入成功！文件 ID：" + docRef.id);
+      } catch (err) {
+        setStatus("寫入失敗：" + err.message);
+      }
+    });
+
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        loggedOutEl.style.display = "none";
+        loggedInEl.style.display = "block";
+        userInfoEl.textContent = `${user.displayName || "老師"} (${user.email})`;
+      } else {
+        loggedOutEl.style.display = "block";
+        loggedInEl.style.display = "none";
+        userInfoEl.textContent = "";
+      }
+    });
+  </script>
+</body>
+</html>

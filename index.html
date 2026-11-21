@@ -203,7 +203,7 @@
     }
     .review-controls {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
       gap: 10px;
       margin-top: 10px;
     }
@@ -215,7 +215,7 @@
     <div class="header">
       <div>
         <h1>學生評語生成器</h1>
-        <div class="muted">三學段不重複生成 · 老師每行一句投稿</div>
+        <div class="muted">三學段不重複生成 · 動態彙整資料庫標籤 · 管理員審核與自訂標籤</div>
       </div>
       <div class="user-bar">
         <div id="auth-logged-out">
@@ -245,7 +245,7 @@
       <!-- 分頁 1：評語生成器 -->
       <section id="panel-generator" class="card">
         <h2>生成學生評語（先讚後彈＋美化包裝＋改善／期望）</h2>
-        <div class="muted">系統會自動記錄每位學生已使用過的句子與句型，盡量讓第 1、2、3 學段評語不重複。</div>
+        <div class="muted">長處與短處選項會自動從正式資料庫彙整；系統會記錄每位學生已用過的語句，避免三學段重複。</div>
 
         <label for="student-name">學生姓名</label>
         <input type="text" id="student-name" placeholder="例如：陳小明" />
@@ -257,10 +257,10 @@
           <option value="3">第三學段（全年回顧與展望）</option>
         </select>
 
-        <label>選擇學生長處（可多選）</label>
+        <label>選擇學生長處（可多選，依資料庫動態產生）</label>
         <div id="strength-options" class="checkbox-grid"></div>
 
-        <label>選擇待改善／不足之處（可多選，生成時會美化包裝並附上建議／期望）</label>
+        <label>選擇待改善／不足之處（可多選，依資料庫動態產生；生成時會美化包裝並附上建議／期望）</label>
         <div id="improvement-options" class="checkbox-grid"></div>
 
         <div class="actions">
@@ -297,7 +297,7 @@
       <!-- 分頁 3：管理員審核 -->
       <section id="panel-admin" class="card hidden">
         <h2>管理員審核後台</h2>
-        <p class="muted">可逐條修改句子、指定正式入庫類別與適用學段，再按「一鍵核准入庫」。一般老師只能讀取正式資料庫生成評語。</p>
+        <p class="muted">可逐條修改句子、選擇現有標籤或<strong>自訂新標籤</strong>，並指定適用學段後按「一鍵核准入庫」。</p>
 
         <div class="actions" style="margin-top:0; margin-bottom:14px;">
           <button id="btn-seed-bank" class="secondary">若正式庫尚無資料，點此寫入預設範例語料</button>
@@ -356,86 +356,37 @@
     const db = getFirestore(app);
     const provider = new GoogleAuthProvider();
 
-    // 標籤定義（可依正式語料庫持續擴充）
-    const STRENGTH_TAGS = [
-      { key: "listening", label: "上課專心留心" },
-      { key: "conduct", label: "守規矩、有禮貌" },
-      { key: "helpful", label: "樂於助人、合群" },
-      { key: "homework", label: "功課認真、整潔" }
-    ];
+    // 初始預設語料（附帶 tagLabel；當正式語料庫有資料時，會優先從正式語料庫動態彙整）
+    const DEFAULT_SEED_ITEMS = [
+      { category: "strength", tagKey: "listening", tagLabel: "上課專心留心", content: "上課留心聽講，能緊跟老師的教學步伐" },
+      { category: "strength", tagKey: "listening", tagLabel: "上課專心留心", content: "課堂表現專注，對學習內容反應敏捷" },
+      { category: "strength", tagKey: "listening", tagLabel: "上課專心留心", content: "能保持良好的聽課習慣，學習態度認真" },
 
-    const IMPROVEMENT_TAGS = [
-      { key: "careless", label: "容易粗心大意" },
-      { key: "speaking", label: "較少主動發言" },
-      { key: "pace", label: "做事節奏較慢" },
-      { key: "confidence", label: "遇難題易氣餒" }
-    ];
+      { category: "strength", tagKey: "conduct", tagLabel: "守規矩、有禮貌", content: "遵守班規，舉止有禮，展現良好的自律性" },
+      { category: "strength", tagKey: "conduct", tagLabel: "守規矩、有禮貌", content: "品行端正，懂得尊重師長與同學" },
+      { category: "strength", tagKey: "conduct", tagLabel: "守規矩、有禮貌", content: "日常常規表現穩健，令人放心" },
 
-    // 內建預設語料（當 Firestore 的 approved_comments 尚未有資料時使用）
-    const FALLBACK_BANK = {
-      strength: {
-        listening: [
-          "上課留心聽講，能緊跟老師的教學步伐",
-          "課堂表現專注，對學習內容反應敏捷",
-          "能保持良好的聽課習慣，學習態度認真"
-        ],
-        conduct: [
-          "遵守班規，舉止有禮，展現良好的自律性",
-          "品行端正，懂得尊重師長與同學",
-          "日常常規表現穩健，令人放心"
-        ],
-        helpful: [
-          "樂於協助同學，與朋輩相處融洽，具團隊精神",
-          "熱心班務，待人友善，深受師生喜愛",
-          "心腸善良，願意主動伸出援手"
-        ],
-        homework: [
-          "日常習作能按時完成，字跡端正清秀",
-          "對學習任務負責，提交的作業大致整潔",
-          "做事有條理，能認真對待每一份功課"
-        ]
-      },
-      softened_weakness: {
-        careless: [
-          "偶爾因操之過急而忽略細節，稍欠細心",
-          "在審題與核對方面若能放慢腳步，準確率會更高",
-          "具備解題能力，惟偶爾忽略小節，略顯大意"
-        ],
-        speaking: [
-          "個性較文靜內斂，課堂上較少主動舉手表達想法",
-          "思考周全但較為含蓄，公開發言的機會相對較少",
-          "屬於慢熱型學生，樂於傾聽但較少展現自信"
-        ],
-        pace: [
-          "做事力求穩妥，但在限時任務中節奏稍慢",
-          "完成部分練習時需較多時間梳理，時間掌握尚有空間",
-          "步調較為從容，若能加快起手速度會更順暢"
-        ],
-        confidence: [
-          "面對較難的題目時偶爾容易退縮，信心尚待提升",
-          "遇到挫折時較易產生顧慮，需要多一點肯定與鼓勵",
-          "在陌生題型前較易猶豫，若能多一份嘗試勇氣會更好"
-        ]
-      },
-      advice: {
-        careless: [
-          "完成作答後預留一兩分鐘細心覆核，定能減少不必要的失分",
-          "建議養成圈畫重點的習慣，讓細心成為你的優勢"
-        ],
-        speaking: [
-          "鼓勵多嘗試舉手分享見解，即使簡短回應也是很好的開始",
-          "期盼你更勇於表達自己，讓大家看見你更多的想法"
-        ],
-        pace: [
-          "可先為每項任務設定小目標與時間提示，逐步提升效率",
-          "期望你在保持穩健的同時，也能更有效掌握時間分配"
-        ],
-        confidence: [
-          "遇到困難時不妨先拆解步驟嘗試，老師相信你做得到",
-          "期許你多給自己一點信心，勇敢迎接每一次挑戰"
-        ]
-      }
-    };
+      { category: "strength", tagKey: "helpful", tagLabel: "樂於助人、合群", content: "樂於協助同學，與朋輩相處融洽，具團隊精神" },
+      { category: "strength", tagKey: "helpful", tagLabel: "樂於助人、合群", content: "熱心班務，待人友善，深受師生喜愛" },
+
+      { category: "strength", tagKey: "homework", tagLabel: "功課認真、整潔", content: "日常習作能按時完成，字跡端正清秀" },
+      { category: "strength", tagKey: "homework", tagLabel: "功課認真、整潔", content: "做事有條理，能認真對待每一份功課" },
+
+      { category: "softened_weakness", tagKey: "careless", tagLabel: "容易粗心大意", content: "偶爾因操之過急而忽略細節，稍欠細心" },
+      { category: "softened_weakness", tagKey: "careless", tagLabel: "容易粗心大意", content: "在審題與核對方面若能放慢腳步，準確率會更高" },
+      { category: "advice", tagKey: "careless", tagLabel: "容易粗心大意", content: "完成作答後預留一兩分鐘細心覆核，定能減少不必要的失分" },
+      { category: "advice", tagKey: "careless", tagLabel: "容易粗心大意", content: "建議養成圈畫重點的習慣，讓細心成為你的優勢" },
+
+      { category: "softened_weakness", tagKey: "speaking", tagLabel: "較少主動發言", content: "個性較文靜內斂，課堂上較少主動舉手表達想法" },
+      { category: "softened_weakness", tagKey: "speaking", tagLabel: "較少主動發言", content: "思考周全但較為含蓄，公開發言的機會相對較少" },
+      { category: "advice", tagKey: "speaking", tagLabel: "較少主動發言", content: "鼓勵多嘗試舉手分享見解，即使簡短回應也是很好的開始" },
+
+      { category: "softened_weakness", tagKey: "pace", tagLabel: "做事節奏較慢", content: "做事力求穩妥，但在限時任務中節奏稍慢" },
+      { category: "advice", tagKey: "pace", tagLabel: "做事節奏較慢", content: "可先為每項任務設定小目標與時間提示，逐步提升效率" },
+
+      { category: "softened_weakness", tagKey: "confidence", tagLabel: "遇難題易氣餒", content: "面對較難的題目時偶爾容易退縮，信心尚待提升" },
+      { category: "advice", tagKey: "confidence", tagLabel: "遇難題易氣餒", content: "遇到困難時不妨先拆解步驟嘗試，老師相信你做得到" }
+    ];
 
     const TERM_TEMPLATES = {
       "1": [
@@ -456,8 +407,9 @@
     let isAdmin = false;
     let currentAdminSubtab = "pending";
     let approvedCommentsCache = [];
+    let dynamicStrengthTags = [];
+    let dynamicImprovementTags = [];
 
-    // DOM 元素
     const authLoggedOutEl = document.getElementById("auth-logged-out");
     const authLoggedInEl = document.getElementById("auth-logged-in");
     const userDisplayEl = document.getElementById("user-display");
@@ -465,27 +417,6 @@
     const loginNoticeEl = document.getElementById("login-notice");
     const appMainEl = document.getElementById("app-main");
     const tabAdminBtn = document.getElementById("tab-admin-btn");
-
-    // 渲染多選標籤
-    function renderTagOptions() {
-      const sContainer = document.getElementById("strength-options");
-      const iContainer = document.getElementById("improvement-options");
-
-      sContainer.innerHTML = STRENGTH_TAGS.map(t => `
-        <label class="checkbox-item">
-          <input type="checkbox" name="strength" value="${t.key}" />
-          <span>${t.label}</span>
-        </label>
-      `).join("");
-
-      iContainer.innerHTML = IMPROVEMENT_TAGS.map(t => `
-        <label class="checkbox-item">
-          <input type="checkbox" name="improvement" value="${t.key}" />
-          <span>${t.label}</span>
-        </label>
-      `).join("");
-    }
-    renderTagOptions();
 
     // 登入與登出
     async function handleLogin() {
@@ -550,7 +481,7 @@
       }
     });
 
-    // 讀取正式資料庫 approved_comments
+    // 讀取正式資料庫 approved_comments，並動態彙整長處與短處標籤
     async function loadApprovedComments() {
       try {
         const snap = await getDocs(collection(db, "approved_comments"));
@@ -559,17 +490,78 @@
         console.warn("讀取正式語料庫失敗，改用預設語料：", err.message);
         approvedCommentsCache = [];
       }
+
+      const sourceItems = approvedCommentsCache.length > 0 ? approvedCommentsCache : DEFAULT_SEED_ITEMS;
+      rebuildDynamicTags(sourceItems);
+      renderDynamicTagCheckboxes();
     }
 
-    function getPool(category, tagKey, term) {
-      const fromDb = approvedCommentsCache
-        .filter(item => item.category === category && item.tagKey === tagKey)
-        .filter(item => !Array.isArray(item.terms) || item.terms.length === 0 || item.terms.includes(String(term)))
+    function normalizeTagKey(label, fallbackKey) {
+      const clean = String(label || "").trim().toLowerCase().replace(/\s+/g, "_");
+      return clean || fallbackKey || "general";
+    }
+
+    function rebuildDynamicTags(items) {
+      const strengthMap = new Map();
+      const improvementMap = new Map();
+
+      items.forEach((item, idx) => {
+        const label = (item.tagLabel || item.tagKey || `項目 ${idx + 1}`).trim();
+        const key = (item.tagKey || normalizeTagKey(label, `tag_${idx}`)).trim();
+        if (!label) return;
+
+        if (item.category === "strength") {
+          if (!strengthMap.has(label)) {
+            strengthMap.set(label, { key, label });
+          }
+        } else if (item.category === "softened_weakness" || item.category === "advice") {
+          if (!improvementMap.has(label)) {
+            improvementMap.set(label, { key, label });
+          }
+        }
+      });
+
+      dynamicStrengthTags = Array.from(strengthMap.values());
+      dynamicImprovementTags = Array.from(improvementMap.values());
+    }
+
+    function renderDynamicTagCheckboxes() {
+      const sContainer = document.getElementById("strength-options");
+      const iContainer = document.getElementById("improvement-options");
+
+      if (dynamicStrengthTags.length === 0) {
+        sContainer.innerHTML = `<div class="muted">目前資料庫尚無「長處」標籤，管理員核准長處評語後會自動出現在此。</div>`;
+      } else {
+        sContainer.innerHTML = dynamicStrengthTags.map(t => `
+          <label class="checkbox-item">
+            <input type="checkbox" name="strength" value="${escapeAttr(t.label)}" data-key="${escapeAttr(t.key)}" />
+            <span>${escapeHtml(t.label)}</span>
+          </label>
+        `).join("");
+      }
+
+      if (dynamicImprovementTags.length === 0) {
+        iContainer.innerHTML = `<div class="muted">目前資料庫尚無「待改善」標籤，管理員核准改善／建議評語後會自動出現在此。</div>`;
+      } else {
+        iContainer.innerHTML = dynamicImprovementTags.map(t => `
+          <label class="checkbox-item">
+            <input type="checkbox" name="improvement" value="${escapeAttr(t.label)}" data-key="${escapeAttr(t.key)}" />
+            <span>${escapeHtml(t.label)}</span>
+          </label>
+        `).join("");
+      }
+    }
+
+    function getPool(category, tagLabel, term) {
+      const sourceItems = approvedCommentsCache.length > 0 ? approvedCommentsCache : DEFAULT_SEED_ITEMS;
+      return sourceItems
+        .filter(item => {
+          const itemLabel = (item.tagLabel || item.tagKey || "").trim();
+          const termOk = !Array.isArray(item.terms) || item.terms.length === 0 || item.terms.includes(String(term));
+          return item.category === category && itemLabel === tagLabel && termOk;
+        })
         .map(item => item.content)
         .filter(Boolean);
-
-      if (fromDb.length > 0) return fromDb;
-      return (FALLBACK_BANK[category] && FALLBACK_BANK[category][tagKey]) || [];
     }
 
     // 防重複紀錄（存在瀏覽器 localStorage）
@@ -605,21 +597,21 @@
     document.getElementById("btn-generate").addEventListener("click", () => {
       const name = document.getElementById("student-name").value.trim() || "這位同學";
       const term = document.getElementById("term-select").value;
-      const selectedStrengths = Array.from(document.querySelectorAll('input[name="strength"]:checked')).map(el => el.value);
-      const selectedImprovements = Array.from(document.querySelectorAll('input[name="improvement"]:checked')).map(el => el.value);
+      const selectedStrengthLabels = Array.from(document.querySelectorAll('input[name="strength"]:checked')).map(el => el.value);
+      const selectedImprovementLabels = Array.from(document.querySelectorAll('input[name="improvement"]:checked')).map(el => el.value);
 
       const usedSet = getStudentUsedSet(name);
 
-      const sPhrases = selectedStrengths
-        .map(k => pickNonRepeating(getPool("strength", k, term), usedSet))
+      const sPhrases = selectedStrengthLabels
+        .map(label => pickNonRepeating(getPool("strength", label, term), usedSet))
         .filter(Boolean);
 
-      const wPhrases = selectedImprovements
-        .map(k => pickNonRepeating(getPool("softened_weakness", k, term), usedSet))
+      const wPhrases = selectedImprovementLabels
+        .map(label => pickNonRepeating(getPool("softened_weakness", label, term), usedSet))
         .filter(Boolean);
 
-      const aPhrases = selectedImprovements
-        .map(k => pickNonRepeating(getPool("advice", k, term), usedSet))
+      const aPhrases = selectedImprovementLabels
+        .map(label => pickNonRepeating(getPool("advice", label, term), usedSet))
         .filter(Boolean);
 
       if (aPhrases.length === 0) {
@@ -644,9 +636,11 @@
 
       saveStudentUsedSet(name, usedSet);
       document.getElementById("generated-output").textContent = comment;
+
+      const labelCount = dynamicStrengthTags.length + dynamicImprovementTags.length;
       const sourceNote = approvedCommentsCache.length > 0
-        ? `已結合正式語料庫（共 ${approvedCommentsCache.length} 句）生成`
-        : "目前使用內建預設語料生成（管理員核准入庫後將自動採用正式語料）";
+        ? `已依正式語料庫（${approvedCommentsCache.length} 句／${labelCount} 個標籤）動態生成`
+        : `目前依預設語料（${labelCount} 個標籤）生成；管理員核准入庫後將自動改用正式語料`;
       document.getElementById("gen-status").textContent = `${sourceNote}；已為「${name}」更新防重複紀錄。`;
     });
 
@@ -732,36 +726,31 @@
 
     document.getElementById("btn-refresh-admin").addEventListener("click", loadAdminList);
 
-    // 寫入預設範例語料到正式庫（方便初次啟用）
+    // 寫入預設範例語料到正式庫
     document.getElementById("btn-seed-bank").addEventListener("click", async () => {
       if (!isAdmin) return;
       try {
-        const batchDocs = [];
-        for (const [cat, tagsObj] of Object.entries(FALLBACK_BANK)) {
-          for (const [tagKey, phrases] of Object.entries(tagsObj)) {
-            for (const content of phrases) {
-              batchDocs.push(
-                addDoc(collection(db, "approved_comments"), {
-                  content,
-                  category: cat,
-                  tagKey,
-                  terms: ["1", "2", "3"],
-                  approvedBy: currentUser.email || "",
-                  createdAt: serverTimestamp()
-                })
-              );
-            }
-          }
-        }
-        await Promise.all(batchDocs);
+        await Promise.all(
+          DEFAULT_SEED_ITEMS.map(item =>
+            addDoc(collection(db, "approved_comments"), {
+              content: item.content,
+              category: item.category,
+              tagKey: item.tagKey,
+              tagLabel: item.tagLabel,
+              terms: ["1", "2", "3"],
+              approvedBy: currentUser.email || "",
+              createdAt: serverTimestamp()
+            })
+          )
+        );
         await loadApprovedComments();
-        alert(`已寫入 ${batchDocs.length} 句預設範例語料至正式資料庫！`);
+        alert(`已寫入 ${DEFAULT_SEED_ITEMS.length} 句預設範例語料至正式資料庫！`);
       } catch (err) {
         alert("寫入失敗：" + err.message);
       }
     });
 
-// 載入管理員清單（待審核 / 已收錄）
+    // 載入管理員清單
     async function loadAdminList() {
       if (!isAdmin) return;
       const listEl = document.getElementById("admin-list");
@@ -781,15 +770,34 @@
           return;
         }
 
-        const strengthOptsHtml = STRENGTH_TAGS.map(t => `<option value="strength|${t.key}">${t.label}（長處）</option>`).join("");
-        const impOptsHtml = IMPROVEMENT_TAGS.map(t =>
-          `<option value="softened_weakness|${t.key}">${t.label}（美化不足）</option>
-           <option value="advice|${t.key}">${t.label}（改善／期望）</option>`
-        ).join("");
+        const strengthOptsHtml = dynamicStrengthTags
+          .map(t => `<option value="strength|${escapeAttr(t.key)}|${escapeAttr(t.label)}">${escapeHtml(t.label)}（長處）</option>`)
+          .join("");
+
+        const impOptsHtml = dynamicImprovementTags
+          .map(t =>
+            `<option value="softened_weakness|${escapeAttr(t.key)}|${escapeAttr(t.label)}">${escapeHtml(t.label)}（美化不足）</option>
+             <option value="advice|${escapeAttr(t.key)}|${escapeAttr(t.label)}">${escapeHtml(t.label)}（改善／期望）</option>`
+          )
+          .join("");
+
+        const customOptsHtml = `
+          <optgroup label="＋ 自訂新標籤">
+            <option value="__custom__|strength">＋ 新增「長處」標籤</option>
+            <option value="__custom__|softened_weakness">＋ 新增「美化不足」標籤</option>
+            <option value="__custom__|advice">＋ 新增「改善／期望」標籤</option>
+          </optgroup>
+        `;
 
         listEl.innerHTML = snap.docs.map(d => {
           const item = d.data();
-          const defaultCatTag = item.hintCategory === "improvement" ? "softened_weakness|careless" : "strength|listening";
+          const defaultVal =
+            item.hintCategory === "improvement"
+              ? (dynamicImprovementTags[0] ? `softened_weakness|${dynamicImprovementTags[0].key}|${dynamicImprovementTags[0].label}` : "__custom__|softened_weakness")
+              : (dynamicStrengthTags[0] ? `strength|${dynamicStrengthTags[0].key}|${dynamicStrengthTags[0].label}` : "__custom__|strength");
+
+          const isDefaultCustom = defaultVal.startsWith("__custom__|");
+
           return `
             <div class="review-item" id="row-${d.id}">
               <div class="review-meta">
@@ -800,11 +808,16 @@
               ${currentAdminSubtab === "pending" ? `
                 <div class="review-controls">
                   <div>
-                    <label style="margin-top:4px;">歸類標籤</label>
-                    <select id="cattag-${d.id}" data-default="${defaultCatTag}">
+                    <label style="margin-top:4px;">選擇現有標籤或新增自訂標籤</label>
+                    <select id="tagselect-${d.id}" data-default="${escapeAttr(defaultVal)}" onchange="window.toggleCustomTagInput('${d.id}')">
                       ${strengthOptsHtml}
                       ${impOptsHtml}
+                      ${customOptsHtml}
                     </select>
+                  </div>
+                  <div id="custom-wrap-${d.id}" class="${isDefaultCustom ? "" : "hidden"}">
+                    <label style="margin-top:4px;">自訂新標籤名稱</label>
+                    <input type="text" id="custom-label-${d.id}" placeholder="例如：閱讀興趣濃厚" />
                   </div>
                   <div>
                     <label style="margin-top:4px;">適用學段</label>
@@ -827,9 +840,10 @@
         }).join("");
 
         snap.docs.forEach(d => {
-          const sel = document.getElementById(`cattag-${d.id}`);
+          const sel = document.getElementById(`tagselect-${d.id}`);
           if (sel && sel.dataset.default) {
             sel.value = sel.dataset.default;
+            window.toggleCustomTagInput(d.id);
           }
         });
       } catch (err) {
@@ -837,11 +851,19 @@
       }
     }
 
-    // 一鍵核准入庫（已修正 doc 參數為 subId）
+    window.toggleCustomTagInput = (subId) => {
+      const sel = document.getElementById(`tagselect-${subId}`);
+      const wrap = document.getElementById(`custom-wrap-${subId}`);
+      if (!sel || !wrap) return;
+      wrap.classList.toggle("hidden", !sel.value.startsWith("__custom__|"));
+    };
+
+    // 一鍵核准入庫（支援現有標籤與自訂新標籤）
     window.approveSubmission = async (subId) => {
       if (!isAdmin || !currentUser) return;
       const inputEl = document.getElementById(`text-${subId}`);
-      const catTagEl = document.getElementById(`cattag-${subId}`);
+      const selEl = document.getElementById(`tagselect-${subId}`);
+      const customLabelEl = document.getElementById(`custom-label-${subId}`);
       const termEl = document.getElementById(`term-${subId}`);
 
       const content = (inputEl ? inputEl.value : "").trim();
@@ -850,7 +872,26 @@
         return;
       }
 
-      const [category, tagKey] = (catTagEl ? catTagEl.value : "strength|listening").split("|");
+      const selVal = selEl ? selEl.value : "";
+      let category = "strength";
+      let tagLabel = "";
+      let tagKey = "";
+
+      if (selVal.startsWith("__custom__|")) {
+        category = selVal.split("|")[1] || "strength";
+        tagLabel = (customLabelEl ? customLabelEl.value : "").trim();
+        if (!tagLabel) {
+          alert("請先輸入自訂新標籤名稱");
+          return;
+        }
+        tagKey = normalizeTagKey(tagLabel, "custom_tag");
+      } else {
+        const parts = selVal.split("|");
+        category = parts[0] || "strength";
+        tagKey = parts[1] || "general";
+        tagLabel = parts[2] || tagKey;
+      }
+
       const terms = (termEl ? termEl.value : "1,2,3").split(",");
 
       try {
@@ -858,6 +899,7 @@
           content,
           category,
           tagKey,
+          tagLabel,
           terms,
           sourceSubmissionId: subId,
           approvedBy: currentUser.email || "",
@@ -875,7 +917,7 @@
         alert("核准失敗：" + err.message);
       }
     };
-    
+
     // 標記不採用
     window.rejectSubmission = async (subId) => {
       if (!isAdmin) return;
